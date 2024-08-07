@@ -89,16 +89,6 @@ namespace AntDesign.TableModels
             return query;
         }
 
-        public Expression<Func<TItem, bool>> ExecuteExpression()
-        {
-            if (!FilterModel.Any())
-            {
-                return Expression.Lambda<Func<TItem, bool>>(Expression.Constant(true, typeof(bool)), Expression.Parameter(typeof(TItem)));
-            }
-            var filters = FilterModel.Select(filter => filter.FilterExpression<TItem>());
-            return filters.Aggregate(Combine);
-        }
-
         public IQueryable<TItem> CurrentPagedRecords(IQueryable<TItem> query) => query.Skip(StartIndex).Take(PageSize);
 
         public Expression<Func<TItem, bool>>? GetQueryExpression()
