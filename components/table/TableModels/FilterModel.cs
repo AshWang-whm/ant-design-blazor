@@ -71,6 +71,61 @@ namespace AntDesign.TableModels
             return source.Where(FilterExpression<TItem>());
         }
 
+            return source.Where(FilterExpression<TItem>());
+            //var sourceExpression = _getFieldExpression.Parameters[0];
+
+            //Expression lambda = null;
+            //if (this.FilterType == TableFilterType.List)
+            //{
+            //    lambda = Expression.Constant(false, typeof(bool));
+            //}
+
+            //foreach (var filter in Filters)
+            //{
+            //    if (this.FilterType == TableFilterType.List)
+            //    {
+            //        lambda = Expression.OrElse(lambda!, Expression.Invoke(OnFilter, Expression.Constant(filter.Value, typeof(TField)), _getFieldExpression.Body));
+            //    }
+            //    else // TableFilterType.FieldType
+            //    {
+            //        if (filter.Value == null
+            //         && filter.FilterCompareOperator is not (TableFilterCompareOperator.IsNull or TableFilterCompareOperator.IsNotNull)) 
+            //            continue;
+
+            //        Expression constantExpression = Expression.Constant(
+            //            filter.FilterCompareOperator is TableFilterCompareOperator.IsNull
+            //                or TableFilterCompareOperator.IsNotNull
+            //                ? null
+            //                : filter.Value);
+            //        var expression = _fieldFilterType.GetFilterExpression(filter.FilterCompareOperator, _getFieldExpression.Body, constantExpression);
+            //        if (lambda == null)
+            //        {
+            //            lambda = expression;
+            //        }
+            //        else
+            //        {
+            //            if (filter.FilterCondition == TableFilterCondition.And)
+            //            {
+            //                lambda = Expression.AndAlso(lambda, expression);
+            //            }
+            //            else
+            //            {
+            //                lambda = Expression.OrElse(lambda, expression);
+            //            }
+            //        }
+            //    }
+            //}
+            //if (lambda == null)
+            //{
+            //    return source;
+            //}
+            //else
+            //{
+            //    return source.Where(Expression.Lambda<Func<TItem, bool>>(lambda, sourceExpression));
+            //}
+        }
+
+
         public Expression<Func<TItem, bool>> FilterExpression<TItem>()
         {
             var sourceExpression = _getFieldExpression.Parameters[0];
@@ -80,16 +135,22 @@ namespace AntDesign.TableModels
             }
 
             Expression lambda = null;
-            if (this.FilterType == TableFilterType.List)
+            // FieldName in Cutomer Filter will be null
+            if (!string.IsNullOrEmpty(FieldName))
             {
-                lambda = Expression.Constant(false, typeof(bool));
+                var prop = _getFieldExpression.Parameters[0].Type.GetProperty(FieldName)?.PropertyType;
+                if ((prop?.IsGenericType ?? false) && prop.GetGenericTypeDefinition() == typeof(Nullable<>))
+                {
+                    lambda = Expression.AndAlso(Expression.NotEqual(_getFieldExpression.Body, null), lambda);
+                }
             }
 
             foreach (var filter in Filters)
             {
+                Expression expression = null;
                 if (this.FilterType == TableFilterType.List)
                 {
-                    lambda = Expression.OrElse(lambda!, Expression.Invoke(OnFilter, Expression.Constant(filter.Value, typeof(TField)), _getFieldExpression.Body));
+                    expression = Expression.Equal(Expression.Constant(filter.Value, typeof(TField)), _getFieldExpression.Body);
                 }
                 else // TableFilterType.FieldType
                 {
@@ -102,21 +163,21 @@ namespace AntDesign.TableModels
                             or TableFilterCompareOperator.IsNotNull
                             ? null
                             : filter.Value);
-                    var expression = _fieldFilterType.GetFilterExpression(filter.FilterCompareOperator, _getFieldExpression.Body, constantExpression);
-                    if (lambda == null)
+                    expression = _fieldFilterType.GetFilterExpression(filter.FilterCompareOperator, _getFieldExpression.Body, constantExpression);
+                }
+                if (lambda == null)
+                {
+                    lambda = expression;
+                }
+                else
+                {
+                    if (filter.FilterCondition == TableFilterCondition.And)
                     {
-                        lambda = expression;
+                        lambda = Expression.AndAlso(lambda, expression);
                     }
                     else
                     {
-                        if (filter.FilterCondition == TableFilterCondition.And)
-                        {
-                            lambda = Expression.AndAlso(lambda, expression);
-                        }
-                        else
-                        {
-                            lambda = Expression.OrElse(lambda, expression);
-                        }
+                        lambda = Expression.OrElse(lambda, expression);
                     }
                 }
             }

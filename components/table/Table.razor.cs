@@ -390,7 +390,7 @@ namespace AntDesign
 
         public QueryModel GetQueryModel() => BuildQueryModel().Clone() as QueryModel;
 
-        private QueryModel<TItem> BuildQueryModel()
+        public QueryModel<TItem> BuildQueryModel()
         {
             var queryModel = new QueryModel<TItem>(PageIndex, PageSize, _startIndex);
 
