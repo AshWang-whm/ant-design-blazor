@@ -129,11 +129,5 @@ namespace AntDesign.TableModels
             var filters = this.FilterModel.ToList();
             return new QueryModel<TItem>(PageIndex, PageSize, StartIndex, sorters, filters);
         }
-
-        private Expression<Func<TItem, bool>> Combine(Expression<Func<TItem, bool>> expr1, Expression<Func<TItem, bool>> expr2)
-        {
-            var combineExp = Expression.Lambda<Func<TItem, bool>>(Expression.AndAlso(expr1.Body, expr2.Body), expr1.Parameters);
-            return combineExp;
-        }
     }
 }

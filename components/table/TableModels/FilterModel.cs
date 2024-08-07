@@ -71,61 +71,6 @@ namespace AntDesign.TableModels
             return source.Where(FilterExpression<TItem>());
         }
 
-            return source.Where(FilterExpression<TItem>());
-            //var sourceExpression = _getFieldExpression.Parameters[0];
-
-            //Expression lambda = null;
-            //if (this.FilterType == TableFilterType.List)
-            //{
-            //    lambda = Expression.Constant(false, typeof(bool));
-            //}
-
-            //foreach (var filter in Filters)
-            //{
-            //    if (this.FilterType == TableFilterType.List)
-            //    {
-            //        lambda = Expression.OrElse(lambda!, Expression.Invoke(OnFilter, Expression.Constant(filter.Value, typeof(TField)), _getFieldExpression.Body));
-            //    }
-            //    else // TableFilterType.FieldType
-            //    {
-            //        if (filter.Value == null
-            //         && filter.FilterCompareOperator is not (TableFilterCompareOperator.IsNull or TableFilterCompareOperator.IsNotNull)) 
-            //            continue;
-
-            //        Expression constantExpression = Expression.Constant(
-            //            filter.FilterCompareOperator is TableFilterCompareOperator.IsNull
-            //                or TableFilterCompareOperator.IsNotNull
-            //                ? null
-            //                : filter.Value);
-            //        var expression = _fieldFilterType.GetFilterExpression(filter.FilterCompareOperator, _getFieldExpression.Body, constantExpression);
-            //        if (lambda == null)
-            //        {
-            //            lambda = expression;
-            //        }
-            //        else
-            //        {
-            //            if (filter.FilterCondition == TableFilterCondition.And)
-            //            {
-            //                lambda = Expression.AndAlso(lambda, expression);
-            //            }
-            //            else
-            //            {
-            //                lambda = Expression.OrElse(lambda, expression);
-            //            }
-            //        }
-            //    }
-            //}
-            //if (lambda == null)
-            //{
-            //    return source;
-            //}
-            //else
-            //{
-            //    return source.Where(Expression.Lambda<Func<TItem, bool>>(lambda, sourceExpression));
-            //}
-        }
-
-
         public Expression<Func<TItem, bool>> FilterExpression<TItem>()
         {
             var sourceExpression = _getFieldExpression.Parameters[0];
