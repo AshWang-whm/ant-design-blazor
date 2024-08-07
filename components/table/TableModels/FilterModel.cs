@@ -68,6 +68,8 @@ namespace AntDesign.TableModels
             {
                 return source;
             }
+            return source.Where(FilterExpression<TItem>());
+        }
 
             return source.Where(FilterExpression<TItem>());
             //var sourceExpression = _getFieldExpression.Parameters[0];
