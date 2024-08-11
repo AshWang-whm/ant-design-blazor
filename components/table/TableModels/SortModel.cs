@@ -86,6 +86,11 @@ namespace AntDesign.TableModels
             }
         }
 
+        public Expression<Func<TItem, TField>> SortExpression<TItem>()
+        {
+            return (Expression<Func<TItem, TField>>)_getFieldExpression;
+        }
+
         /// <inheritdoc />
         public int Compare(TField x, TField y)
         {
