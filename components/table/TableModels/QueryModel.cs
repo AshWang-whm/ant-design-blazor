@@ -94,10 +94,12 @@ namespace AntDesign.TableModels
         /// And you can get the filtered data by executing the expression with the data source.
         /// </summary>
         /// <returns></returns>
-        public Expression<Func<TItem, bool>> GetFilterExpression()
+        public Expression<Func<TItem, bool>> GetFilterExpression(bool nullable = true)
         {
             if (!FilterModel.Any())
             {
+                if (nullable)
+                    return null;
                 return Expression.Lambda<Func<TItem, bool>>(Expression.Constant(true, typeof(bool)), Expression.Parameter(typeof(TItem)));
             }
             var filters = FilterModel.Select(filter => filter.FilterExpression<TItem>());
@@ -105,17 +107,6 @@ namespace AntDesign.TableModels
         }
 
         public IQueryable<TItem> CurrentPagedRecords(IQueryable<TItem> query) => query.Skip(StartIndex).Take(PageSize);
-
-        public Expression<Func<TItem, bool>>? GetQueryExpression()
-        {
-            if (!FilterModel.Any())
-            {
-                //return Expression.Lambda<Func<TItem, bool>>(Expression.Constant(true, typeof(bool)), Expression.Parameter(typeof(TItem)));
-                return null;
-            }
-            var filters = FilterModel.Select(filter => filter.FilterExpression<TItem>());
-            return filters.Aggregate(Combine);
-        }
 
         Expression<Func<TItem, bool>> Combine(Expression<Func<TItem, bool>> expr1, Expression<Func<TItem, bool>> expr2)
         {
