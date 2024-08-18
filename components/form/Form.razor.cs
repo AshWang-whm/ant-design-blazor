@@ -142,9 +142,6 @@ namespace AntDesign
             builder.CloseComponent();
         };
 
-        [Parameter]
-        public FormValidateErrorMessages ValidateMessages { get; set; }
-
         /// <summary>
         /// If enabled, form submission is performed without fully reloading the page. This is equivalent to adding data-enhance to the form.
         /// </summary>
@@ -156,6 +153,9 @@ namespace AntDesign
         /// </summary>
         [Parameter]
         public string Autocomplete { get; set; } = "off";
+
+        [Parameter]
+        public FormLocale Locale { get; set; } = LocaleProvider.CurrentLocale.Form;
 
         [CascadingParameter(Name = "FormProvider")]
         private IFormProvider FormProvider { get; set; }
@@ -183,9 +183,22 @@ namespace AntDesign
         bool IForm.IsModified => _editContext.IsModified();
 
         FormValidateMode IForm.ValidateMode => ValidateMode;
-        FormValidateErrorMessages IForm.ValidateMessages => ValidateMessages;
+        FormLocale IForm.Locale => Locale;
 
-        public event Action<IForm> OnFinishEvent;
+        private event Action<IForm> OnFinishEvent;
+
+        event Action<IForm> IForm.OnFinishEvent
+        {
+            add
+            {
+                OnFinishEvent += value;
+            }
+
+            remove
+            {
+                OnFinishEvent -= value;
+            }
+        }
 
         protected override void OnInitialized()
         {
@@ -210,7 +223,7 @@ namespace AntDesign
             if (OnValidationStateChanged.HasDelegate)
                 _editContext.OnValidationStateChanged += OnValidationStateChangedHandler;
 
-            if (ValidateMode.IsIn(FormValidateMode.Rules, FormValidateMode.Complex))
+            if (UseRulesValidator)
             {
                 _editContext.OnFieldChanged += RulesModeOnFieldChanged;
                 _editContext.OnValidationRequested += RulesModeOnValidationRequested;
@@ -232,7 +245,7 @@ namespace AntDesign
             if (OnValidationStateChanged.HasDelegate)
                 _editContext.OnValidationStateChanged -= OnValidationStateChangedHandler;
 
-            if (ValidateMode.IsIn(FormValidateMode.Rules, FormValidateMode.Complex))
+            if (UseRulesValidator)
             {
                 _editContext.OnFieldChanged -= RulesModeOnFieldChanged;
                 _editContext.OnValidationRequested -= RulesModeOnValidationRequested;
@@ -271,10 +284,6 @@ namespace AntDesign
 
         private void RulesModeOnFieldChanged(object sender, FieldChangedEventArgs args)
         {
-            if (!ValidateMode.IsIn(FormValidateMode.Rules, FormValidateMode.Complex))
-            {
-                return;
-            }
 
             _rulesValidator.ClearError(args.FieldIdentifier);
 
@@ -286,7 +295,7 @@ namespace AntDesign
                 return;
             }
 
-            var result = formItem.ValidateField();
+            var result = formItem.ValidateFieldWithRules();
 
             if (result.Length > 0)
             {
@@ -299,18 +308,13 @@ namespace AntDesign
 
         private void RulesModeOnValidationRequested(object sender, ValidationRequestedEventArgs args)
         {
-            if (!ValidateMode.IsIn(FormValidateMode.Rules, FormValidateMode.Complex))
-            {
-                return;
-            }
-
             _rulesValidator.ClearErrors();
 
             var errors = new Dictionary<FieldIdentifier, List<string>>();
 
             foreach (var formItem in _formItems)
             {
-                var result = formItem.ValidateField();
+                var result = formItem.ValidateFieldWithRules();
                 if (result.Length > 0)
                 {
                     errors[formItem.GetFieldIdentifier()] = result.Select(r => r.ErrorMessage).ToList();
@@ -375,11 +379,18 @@ namespace AntDesign
             return result;
         }
 
+
         public void ValidationReset() => BuildEditContext();
 
         public EditContext EditContext => _editContext;
 
-        public void BuildEditContext()
+        bool UseLocaleValidateMessage => Locale.DefaultValidateMessages != null;
+
+        bool IForm.UseLocaleValidateMessage => UseLocaleValidateMessage;
+
+        bool UseRulesValidator => UseLocaleValidateMessage || ValidateMode != FormValidateMode.Default;
+
+        private void BuildEditContext()
         {
             if (_editContext == null)
                 return;
@@ -405,6 +416,10 @@ namespace AntDesign
                 }
             }
             _editContext = newContext;
+
+            // because EditForm's editcontext CascadingValue is fixed,so there need invoke StateHasChanged,
+            // otherwise, the child component's(FormItem) EditContext will not update.
+            InvokeAsync(StateHasChanged);
         }
 
         private static BindingFlags AllBindings
@@ -431,6 +446,15 @@ namespace AntDesign
                 }
             }
             return _eventInfos;
+        }
+
+        public void SetValidationMessages(string field, string[] errorMessages)
+        {
+            var fieldIdentifier = _editContext.Field(field);
+            var formItem = _formItems
+              .FirstOrDefault(t => t.GetFieldIdentifier().Equals(fieldIdentifier));
+
+            formItem?.SetValidationMessage(errorMessages);
         }
     }
 }

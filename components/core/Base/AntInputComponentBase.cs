@@ -38,6 +38,8 @@ namespace AntDesign
 
         internal PropertyReflector? PopertyReflector => _propertyReflector;
 
+        internal Type ValueUnderlyingType => _nullableUnderlyingType ?? typeof(TValue);
+
         [CascadingParameter(Name = "FormItem")]
         protected IFormItem FormItem { get; set; }
 
@@ -401,9 +403,9 @@ namespace AntDesign
                     }
 
                     EditContext = Form?.EditContext;
-
-                    _nullableUnderlyingType = Nullable.GetUnderlyingType(typeof(TValue));
                 }
+
+                _nullableUnderlyingType = Nullable.GetUnderlyingType(typeof(TValue));
 
                 EditContext.OnValidationStateChanged += _validationStateChangedHandler;
 

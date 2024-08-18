@@ -16,6 +16,7 @@ using AntDesign.core.Services;
 using AntDesign.Table.Internal;
 using AntDesign.Core.Reflection;
 using System.Diagnostics.CodeAnalysis;
+using AntDesign.Internal;
 
 
 #if NET5_0_OR_GREATER
@@ -67,7 +68,10 @@ namespace AntDesign
         public RenderFragment<TItem> ChildContent { get; set; }
 
         [Parameter]
-        public RenderFragment<RowData<TItem>> GroupTitleTemplate { get; set; }
+        public RenderFragment<GroupResult<TItem>> GroupTitleTemplate { get; set; }
+
+        [Parameter]
+        public RenderFragment<GroupResult<TItem>> GroupFooterTemplate { get; set; }
 
         [Parameter]
         public RenderFragment<RowData<TItem>> RowTemplate { get; set; }
@@ -138,7 +142,7 @@ namespace AntDesign
         public string ScrollY { get; set; }
 
         [Parameter]
-        public string ScrollBarWidth { get => _scrollBarWidth; set => _scrollBarWidth = value; }
+        public string ScrollBarWidth { get; set; }
 
         [Parameter]
         public int IndentSize { get; set; } = 15;
@@ -228,14 +232,13 @@ namespace AntDesign
         private bool _waitingReloadAndInvokeChange;
         private bool _treeMode;
         private string _scrollBarWidth;
-        private string _realScrollBarSize = "15px";
         private bool _hasFixLeft;
         private bool _hasFixRight;
         private int _treeExpandIconColumnIndex;
 
         private QueryModel _currentQueryModel;
         private readonly ClassMapper _wrapperClassMapper = new();
-        private List<IGrouping<object, TItem>> _groups = [];
+        private List<GroupResult<TItem>> _groups = [];
 
         private string TableLayoutStyle => TableLayout == null ? "" : $"table-layout: {TableLayout};";
 
@@ -269,8 +272,7 @@ namespace AntDesign
         int ITable.IndentSize => IndentSize;
         string ITable.ScrollX => ScrollX;
         string ITable.ScrollY => ScrollY;
-        string ITable.ScrollBarWidth => _scrollBarWidth;
-        string ITable.RealScrollBarSize => _scrollBarWidth ?? _realScrollBarSize;
+        string ITable.ScrollBarWidth => _scrollBarWidth ?? "15px";
         int ITable.ExpandIconColumnIndex => ExpandIconColumnIndex + (_selection != null && _selection.ColIndex <= ExpandIconColumnIndex ? 1 : 0);
         int ITable.TreeExpandIconColumnIndex => _treeExpandIconColumnIndex;
         bool ITable.HasExpandTemplate => ExpandTemplate != null;
@@ -285,16 +287,17 @@ namespace AntDesign
 
         RenderFragment<RowData> ITable.GroupTitleTemplate => rowData =>
         {
+            var groupResult = ((RowData<TItem>)rowData).GroupResult;
             if (GroupTitleTemplate == null)
             {
                 return builder =>
                 {
-                    builder.AddContent(0, rowData.Key);
+                    builder.AddContent(0, groupResult.Key);
                 };
             }
             return builder =>
             {
-                builder.AddContent(0, GroupTitleTemplate((RowData<TItem>)rowData));
+                builder.AddContent(0, GroupTitleTemplate(groupResult));
             };
         };
 
@@ -305,6 +308,7 @@ namespace AntDesign
             _dataSourceCache = new();
             _rootRowDataCache = new();
             _selectedRows = new(this);
+            _showItemHashs = new(this);
         }
 
         private List<IFieldColumn> _groupedColumns = [];
@@ -608,28 +612,18 @@ namespace AntDesign
                 return;
             }
 
-            var queryModel = BuildQueryModel();
-            var query = queryModel.ExecuteQuery(_dataSource.AsQueryable());
-
-            foreach (var column in _groupedColumns)
-            {
-                var grouping = column.Group(queryModel.CurrentPagedRecords(query));
-                _groups = [.. grouping];
-            }
-
-            StateHasChanged();
+            var selectedKeys = _groupedColumns.Select(x => x.GetGroupByExpression<TItem>()).ToArray();
+            _groups = DynamicGroupByHelper.DynamicGroupBy(_showItems, selectedKeys);
         }
 
         public void AddGroupColumn(IFieldColumn column)
         {
             this._groupedColumns.Add(column);
-            GroupItems();
         }
 
         public void RemoveGroupColumn(IFieldColumn column)
         {
             this._groupedColumns.Remove(column);
-            GroupItems();
         }
 
         private void SetClass()
@@ -673,6 +667,8 @@ namespace AntDesign
             {
                 TableLayout = "fixed";
             }
+
+            _scrollBarWidth = ScrollBarWidth;
 
 #if NET5_0_OR_GREATER
             if (UseItemsProvider)
@@ -743,10 +739,11 @@ namespace AntDesign
                     await JsInvokeAsync(JSInteropConstants.BindTableScroll, _wrapperRef, _tableBodyRef, _tableRef, _tableHeaderRef, ScrollX != null, ScrollY != null, Resizable);
                 }
 
-                if (ScrollY != null && ScrollBarWidth == null)
+                if (ScrollY != null && ScrollY != null && _scrollBarWidth == null)
                 {
                     var scrollBarSize = await ClientDimensionService.GetScrollBarSizeAsync();
-                    _realScrollBarSize = $"{scrollBarSize}px";
+                    _scrollBarWidth = $"{scrollBarSize}px";
+                    ColumnContext.HeaderColumns.LastOrDefault()?.UpdateFixedStyle();
                 }
 
                 // To handle the case where JS is called asynchronously and does not render when there is a fixed header or are any fixed columns.
