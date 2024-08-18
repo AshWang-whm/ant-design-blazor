@@ -108,12 +108,6 @@ namespace AntDesign.TableModels
 
         public IQueryable<TItem> CurrentPagedRecords(IQueryable<TItem> query) => query.Skip(StartIndex).Take(PageSize);
 
-        Expression<Func<TItem, bool>> Combine(Expression<Func<TItem, bool>> expr1, Expression<Func<TItem, bool>> expr2)
-        {
-            var combineExp = Expression.Lambda<Func<TItem, bool>>(Expression.AndAlso(expr1.Body, expr2.Body), expr1.Parameters);
-            return combineExp;
-        }
-
         public object Clone()
         {
             var sorters = this.SortModel.Select(x => x.Clone() as ITableSortModel).ToList();
